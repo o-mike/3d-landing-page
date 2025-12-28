@@ -4,8 +4,8 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 
 // Scene setup
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x2a2a2a);
-scene.fog = new THREE.Fog(0x2a2a2a, 30, 60);
+scene.background = new THREE.Color(0x87ceeb); // Sky blue for debugging
+// scene.fog = new THREE.Fog(0x2a2a2a, 30, 60); // Disable fog for debugging
 
 // Camera setup
 const camera = new THREE.PerspectiveCamera(
@@ -193,7 +193,8 @@ controls.addEventListener('unlock', function () {
   blocker.classList.remove('hidden');
 });
 
-scene.add(controls.getObject());
+// No need to add controls to scene - camera is already there
+scene.add(camera);
 
 // Movement state
 const moveState = {
@@ -259,11 +260,18 @@ let currentZone = null;
 
 // Animation loop
 const clock = new THREE.Clock();
+let frameCount = 0;
 
 function animate() {
   requestAnimationFrame(animate);
 
   const delta = clock.getDelta();
+
+  // Debug: Log first few frames
+  if (frameCount < 3) {
+    console.log('Frame', frameCount, 'rendering...');
+    frameCount++;
+  }
 
   // Update movement
   if (controls.isLocked) {
@@ -285,7 +293,7 @@ function animate() {
     controls.moveForward(-velocity.z * delta);
 
     // Boundary checking (keep player inside the room)
-    const pos = controls.getObject().position;
+    const pos = camera.position;
     pos.x = Math.max(-14, Math.min(14, pos.x));
     pos.z = Math.max(-14, Math.min(14, pos.z));
   }
@@ -308,7 +316,7 @@ function animate() {
 }
 
 function checkZoneProximity() {
-  const playerPos = controls.getObject().position;
+  const playerPos = camera.position;
   let nearZone = null;
 
   zones.forEach(zone => {
@@ -334,6 +342,20 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+// Debug: Add a bright test cube right in front of camera
+const testCube = new THREE.Mesh(
+  new THREE.BoxGeometry(2, 2, 2),
+  new THREE.MeshBasicMaterial({ color: 0xff0000 }) // Bright red, no lighting needed
+);
+testCube.position.set(0, 1.7, 0); // Right at camera height, centered
+scene.add(testCube);
+
+// Debug logging
+console.log('Scene initialized');
+console.log('Camera position:', camera.position);
+console.log('Renderer size:', renderer.domElement.width, renderer.domElement.height);
+console.log('Scene children count:', scene.children.length);
 
 // Start animation
 animate();
