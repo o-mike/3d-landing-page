@@ -4,8 +4,8 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 
 // Scene setup
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb); // Sky blue for debugging
-// scene.fog = new THREE.Fog(0x2a2a2a, 30, 60); // Disable fog for debugging
+scene.background = new THREE.Color(0x2a2a2a);
+scene.fog = new THREE.Fog(0x2a2a2a, 30, 60);
 
 // Camera setup
 const camera = new THREE.PerspectiveCamera(
@@ -202,11 +202,19 @@ const moveState = {
   backward: false,
   left: false,
   right: false,
+  sliding: false,
 };
 
 const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
+const slideVelocity = new THREE.Vector3();
 const moveSpeed = 15.0;
+const slideSpeed = 30.0; // Faster than walking (ULTRAKILL-style)
+const slideDecay = 5.0; // How quickly slide momentum fades
+const normalCameraHeight = 1.7;
+const slideCameraHeight = 1.0; // Crouch height
+let currentCameraHeight = normalCameraHeight;
+let slideDirection = new THREE.Vector3();
 
 // Keyboard controls
 document.addEventListener('keydown', (event) => {
@@ -226,6 +234,24 @@ document.addEventListener('keydown', (event) => {
     case 'KeyD':
     case 'ArrowRight':
       moveState.right = true;
+      break;
+    case 'KeyC':
+      // Initiate slide with current movement direction
+      if (!moveState.sliding && controls.isLocked) {
+        moveState.sliding = true;
+        // Capture current movement direction for slide
+        slideDirection.z = Number(moveState.forward) - Number(moveState.backward);
+        slideDirection.x = Number(moveState.right) - Number(moveState.left);
+        slideDirection.normalize();
+
+        // If not moving, slide forward
+        if (slideDirection.length() === 0) {
+          slideDirection.z = -1;
+        }
+
+        // Apply initial slide velocity
+        slideVelocity.copy(slideDirection).multiplyScalar(slideSpeed);
+      }
       break;
   }
 });
@@ -260,37 +286,57 @@ let currentZone = null;
 
 // Animation loop
 const clock = new THREE.Clock();
-let frameCount = 0;
 
 function animate() {
   requestAnimationFrame(animate);
 
   const delta = clock.getDelta();
 
-  // Debug: Log first few frames
-  if (frameCount < 3) {
-    console.log('Frame', frameCount, 'rendering...');
-    frameCount++;
-  }
-
   // Update movement
   if (controls.isLocked) {
-    velocity.x -= velocity.x * 10.0 * delta;
-    velocity.z -= velocity.z * 10.0 * delta;
+    // Handle sliding
+    if (moveState.sliding) {
+      // Decay slide velocity
+      slideVelocity.x -= slideVelocity.x * slideDecay * delta;
+      slideVelocity.z -= slideVelocity.z * slideDecay * delta;
 
-    direction.z = Number(moveState.forward) - Number(moveState.backward);
-    direction.x = Number(moveState.right) - Number(moveState.left);
-    direction.normalize();
+      // End slide when velocity is low enough
+      if (slideVelocity.length() < 2.0) {
+        moveState.sliding = false;
+        slideVelocity.set(0, 0, 0);
+      }
 
-    if (moveState.forward || moveState.backward) {
-      velocity.z -= direction.z * moveSpeed * delta;
+      // Apply slide movement
+      controls.moveRight(-slideVelocity.x * delta);
+      controls.moveForward(-slideVelocity.z * delta);
+
+      // Smoothly lower camera when sliding
+      currentCameraHeight += (slideCameraHeight - currentCameraHeight) * 10.0 * delta;
+    } else {
+      // Normal movement
+      velocity.x -= velocity.x * 10.0 * delta;
+      velocity.z -= velocity.z * 10.0 * delta;
+
+      direction.z = Number(moveState.forward) - Number(moveState.backward);
+      direction.x = Number(moveState.right) - Number(moveState.left);
+      direction.normalize();
+
+      if (moveState.forward || moveState.backward) {
+        velocity.z -= direction.z * moveSpeed * delta;
+      }
+      if (moveState.left || moveState.right) {
+        velocity.x -= direction.x * moveSpeed * delta;
+      }
+
+      controls.moveRight(-velocity.x * delta);
+      controls.moveForward(-velocity.z * delta);
+
+      // Smoothly raise camera when not sliding
+      currentCameraHeight += (normalCameraHeight - currentCameraHeight) * 10.0 * delta;
     }
-    if (moveState.left || moveState.right) {
-      velocity.x -= direction.x * moveSpeed * delta;
-    }
 
-    controls.moveRight(-velocity.x * delta);
-    controls.moveForward(-velocity.z * delta);
+    // Apply camera height
+    camera.position.y = currentCameraHeight;
 
     // Boundary checking (keep player inside the room)
     const pos = camera.position;
@@ -342,20 +388,6 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
-
-// Debug: Add a bright test cube right in front of camera
-const testCube = new THREE.Mesh(
-  new THREE.BoxGeometry(2, 2, 2),
-  new THREE.MeshBasicMaterial({ color: 0xff0000 }) // Bright red, no lighting needed
-);
-testCube.position.set(0, 1.7, 0); // Right at camera height, centered
-scene.add(testCube);
-
-// Debug logging
-console.log('Scene initialized');
-console.log('Camera position:', camera.position);
-console.log('Renderer size:', renderer.domElement.width, renderer.domElement.height);
-console.log('Scene children count:', scene.children.length);
 
 // Start animation
 animate();
