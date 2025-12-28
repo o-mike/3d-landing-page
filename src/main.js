@@ -4,8 +4,8 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 
 // Scene setup
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a1a);
-scene.fog = new THREE.Fog(0x1a1a1a, 0, 50);
+scene.background = new THREE.Color(0x2a2a2a);
+scene.fog = new THREE.Fog(0x2a2a2a, 30, 60);
 
 // Camera setup
 const camera = new THREE.PerspectiveCamera(
@@ -24,11 +24,11 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
 // Lighting - Ex Machina inspired (warm ambient + strategic spotlights)
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
 scene.add(ambientLight);
 
 // Main overhead light
-const mainLight = new THREE.DirectionalLight(0xffffff, 0.6);
+const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
 mainLight.position.set(5, 10, 5);
 mainLight.castShadow = true;
 mainLight.shadow.mapSize.width = 2048;
@@ -40,18 +40,18 @@ mainLight.shadow.camera.bottom = -20;
 scene.add(mainLight);
 
 // Accent lights for zones
-const gameCornerLight = new THREE.PointLight(0x00ffff, 1, 10);
+const gameCornerLight = new THREE.PointLight(0x00ffff, 2, 15);
 gameCornerLight.position.set(-8, 2, -8);
 scene.add(gameCornerLight);
 
-const cvCornerLight = new THREE.PointLight(0xffaa00, 1, 10);
+const cvCornerLight = new THREE.PointLight(0xffaa00, 2, 15);
 cvCornerLight.position.set(8, 2, -8);
 scene.add(cvCornerLight);
 
 // Floor - concrete texture feel
 const floorGeometry = new THREE.PlaneGeometry(30, 30);
 const floorMaterial = new THREE.MeshStandardMaterial({
-  color: 0x3a3a3a,
+  color: 0x606060,
   roughness: 0.8,
   metalness: 0.2,
 });
@@ -62,7 +62,7 @@ scene.add(floor);
 
 // Walls - clean, minimalist glass/concrete
 const wallMaterial = new THREE.MeshStandardMaterial({
-  color: 0x4a4a4a,
+  color: 0x808080,
   roughness: 0.7,
   metalness: 0.1,
 });
