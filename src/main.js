@@ -208,12 +208,12 @@ const moveState = {
 
 const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
-const slideVelocity = new THREE.Vector3();
+let currentSlideSpeed = 0; // Current slide momentum
 const verticalVelocity = 0;
 let currentVerticalVelocity = 0;
 const moveSpeed = 15.0;
 const slideSpeed = 30.0; // Faster than walking (ULTRAKILL-style)
-const slideDecay = 5.0; // How quickly slide momentum fades
+const slideDecay = 8.0; // How quickly slide momentum fades
 const jumpForce = 8.0;
 const gravity = 20.0;
 const normalCameraHeight = 1.7;
@@ -221,7 +221,7 @@ const slideCameraHeight = 1.0; // Crouch height
 let currentCameraHeight = normalCameraHeight;
 let isGrounded = true;
 let canDoubleJump = false; // Can use double jump after first jump
-let slideDirection = new THREE.Vector3();
+let currentRoom = 'main'; // Track which room player is in
 
 // Keyboard controls
 document.addEventListener('keydown', (event) => {
@@ -246,14 +246,8 @@ document.addEventListener('keydown', (event) => {
       // Hold to slide
       if (!moveState.sliding && controls.isLocked && isGrounded) {
         moveState.sliding = true;
-        // Get camera's forward direction
-        const forward = new THREE.Vector3();
-        camera.getWorldDirection(forward);
-        forward.y = 0; // Keep it horizontal
-        forward.normalize();
-
-        // Apply initial slide velocity in look direction
-        slideVelocity.copy(forward).multiplyScalar(slideSpeed);
+        // Slide moves you forward in the direction you're looking
+        // Store the slide speed - we'll use controls.moveForward() in the update loop
       }
       break;
     case 'Space':
@@ -295,7 +289,7 @@ document.addEventListener('keyup', (event) => {
     case 'KeyC':
       // Stop sliding when C is released
       moveState.sliding = false;
-      slideVelocity.set(0, 0, 0);
+      currentSlideSpeed = 0;
       break;
   }
 });
@@ -333,25 +327,26 @@ function animate() {
 
     // Handle sliding
     if (moveState.sliding && isGrounded) {
-      // Decay slide velocity
-      slideVelocity.x -= slideVelocity.x * slideDecay * delta;
-      slideVelocity.z -= slideVelocity.z * slideDecay * delta;
+      // Start slide at full speed if just initiated
+      if (currentSlideSpeed === 0) {
+        currentSlideSpeed = slideSpeed;
+      }
 
-      // Apply slide movement
-      controls.moveRight(-slideVelocity.x * delta);
-      controls.moveForward(-slideVelocity.z * delta);
+      // Decay slide speed over time
+      currentSlideSpeed -= currentSlideSpeed * slideDecay * delta;
+
+      // Move forward at slide speed (in camera look direction)
+      controls.moveForward(-currentSlideSpeed * delta);
 
       // Smoothly lower camera when sliding
       currentCameraHeight += (slideCameraHeight - currentCameraHeight) * 10.0 * delta;
     } else if (!isGrounded) {
-      // In air - maintain momentum from last movement or slide
-      if (slideVelocity.length() > 0.1) {
+      // In air - maintain momentum from last movement
+      if (currentSlideSpeed > 0.5) {
         // Carry slide momentum in air
-        controls.moveRight(-slideVelocity.x * delta);
-        controls.moveForward(-slideVelocity.z * delta);
+        controls.moveForward(-currentSlideSpeed * delta);
         // Slight air friction
-        slideVelocity.x -= slideVelocity.x * 2.0 * delta;
-        slideVelocity.z -= slideVelocity.z * 2.0 * delta;
+        currentSlideSpeed -= currentSlideSpeed * 2.0 * delta;
       } else {
         // Carry walk momentum in air
         controls.moveRight(-velocity.x * delta);
